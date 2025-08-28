@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Data;
+using api.Helpers;
 using api.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,36 @@ namespace api.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Models.Task>> GetAllTasksAsync(string userId)
+        public async Task<IEnumerable<Models.Task>> GetAllTasksAsync(string userId, QueryObject queryObject)
         {
-            return await _context.Tasks
+            var query = _context.Tasks
                 .Include(c => c.Notes)
                 .Where(t => t.UserId == userId)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(queryObject.Title))
+            {
+                query = query.Where(t => t.Title.Contains(queryObject.Title));
+            }
+
+            if (queryObject.IsCompleted.HasValue)
+            {
+                query = query.Where(t => t.IsCompleted == queryObject.IsCompleted.Value);
+            }
+
+            if (queryObject.From.HasValue)
+            {
+                query = query.Where(t => t.DueDate >= queryObject.From.Value);
+            }
+
+            if (queryObject.To.HasValue)
+            {
+                query = query.Where(t => t.DueDate <= queryObject.To.Value);
+            }
+
+            return await query.ToListAsync();
         }
+
 
         public async Task<Models.Task?> GetTaskByIdAsync(int id, string userId)
         {

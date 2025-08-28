@@ -96,7 +96,9 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SigningKey"]))
+            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SigningKey"])),
+
+        NameClaimType = "nameid"
     };
 
     // for me to test notifications via postman
@@ -201,6 +203,20 @@ builder.Services.AddHangfireServer();
 
 builder.Services.AddSignalR();
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Policy<3", policy =>
+    {
+        policy
+            .SetIsOriginAllowed(origin => true)
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 var app = builder.Build();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -216,7 +232,10 @@ if (app.Environment.IsDevelopment())
 
 
 
+
+
 app.UseHttpsRedirection();
+app.UseCors("Policy<3");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

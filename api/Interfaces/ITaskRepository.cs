@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Dtos.Task;
+using api.Helpers;
 
 namespace api.Interfaces
 {
     public interface ITaskRepository
     {
-        Task<IEnumerable<Models.Task>> GetAllTasksAsync(string userId);
+        Task<IEnumerable<Models.Task>> GetAllTasksAsync(string userId, QueryObject queryObject);
         Task<Models.Task?> GetTaskByIdAsync(int id, string userId);
         Task<Models.Task> CreateTaskAsync(Models.Task task);
         Task<Models.Task> UpdateTaskAsync(Models.Task task);

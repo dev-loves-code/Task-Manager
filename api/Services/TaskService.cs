@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using api.Dtos.Task;
 using api.Interfaces;
+using api.Helpers;
 using api.Models;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +22,29 @@ namespace api.Services
         private const string ALL_TASKS_CACHE_KEY_PREFIX = "AllTasks_";
         private const string TASK_CACHE_KEY_PREFIX = "Task_";
 
+        private string BuildCacheKey(string userId, QueryObject queryObject)
+        {
+            var parts = new List<string>
+    {
+        $"{ALL_TASKS_CACHE_KEY_PREFIX}{userId}"
+    };
+
+            if (!string.IsNullOrEmpty(queryObject.Title))
+                parts.Add($"title:{queryObject.Title.ToLower()}");
+
+            if (queryObject.IsCompleted.HasValue)
+                parts.Add($"completed:{queryObject.IsCompleted.Value}");
+
+            if (queryObject.From.HasValue)
+                parts.Add($"from:{queryObject.From.Value:yyyyMMdd}");
+
+            if (queryObject.To.HasValue)
+                parts.Add($"to:{queryObject.To.Value:yyyyMMdd}");
+
+            return string.Join(":", parts);
+        }
+
+
         public TaskService(ITaskRepository taskRepository, IRedisCacheService redisCacheService, ILogger<TaskService> logger, UserManager<AppUser> userManager)
         {
             _userManager = userManager;
@@ -29,7 +53,7 @@ namespace api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<GetTaskDto>> GetAllTasksAsync(string username)
+        public async Task<IEnumerable<GetTaskDto>> GetAllTasksAsync(string username, QueryObject queryObject)
         {
             _logger.LogInformation("Starting to fetch all tasks for user: {Username}", username);
 
@@ -42,7 +66,7 @@ namespace api.Services
                     throw new UnauthorizedAccessException("User not found");
                 }
 
-                string cacheKey = $"{ALL_TASKS_CACHE_KEY_PREFIX}{appUser.Id}";
+                string cacheKey = BuildCacheKey(appUser.Id, queryObject);
                 var cachedTasks = _redisCacheService.GetData<IEnumerable<GetTaskDto>>(cacheKey);
                 if (cachedTasks != null)
                 {
@@ -51,7 +75,7 @@ namespace api.Services
                 }
 
                 _logger.LogInformation("Cache miss - fetching tasks from repository for user {Username}", username);
-                var tasks = await _taskRepository.GetAllTasksAsync(appUser.Id);
+                var tasks = await _taskRepository.GetAllTasksAsync(appUser.Id, queryObject);
                 var taskDtos = tasks.Adapt<IEnumerable<GetTaskDto>>();
 
                 if (taskDtos.Any())
@@ -300,14 +324,14 @@ namespace api.Services
 
         public async Task<IEnumerable<GetTaskDto>> GetPastDueTasks(string userId)
         {
-            var tasks = await _taskRepository.GetAllTasksAsync(userId);
+            var tasks = await _taskRepository.GetPastDueTasksAsync(userId);
             var taskDtos = tasks.Adapt<IEnumerable<GetTaskDto>>();
             return taskDtos;
         }
 
         public async Task<IEnumerable<GetTaskDto>> GetUpcommingTasks(string userId)
         {
-            var tasks = await _taskRepository.GetAllTasksAsync(userId);
+            var tasks = await _taskRepository.GetUpcomingTasksAsync(userId);
             var taskDtos = tasks.Adapt<IEnumerable<GetTaskDto>>();
             return taskDtos;
         }

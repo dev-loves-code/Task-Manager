@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers
 {
+    [Route("api/account")]
+    [ApiController]
     public class AccountController : ControllerBase
     {
         private readonly IAccountService _accountService;
@@ -72,7 +74,7 @@ namespace api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Login failed for user {UserName}", loginDto.Username);
-                return StatusCode(500, ex.Message);
+                return BadRequest(new { message = "Invalid password." });
             }
 
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using api.Dtos.Task;
+using api.Helpers;
 using api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,16 +47,13 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllTasks()
+        public async Task<IActionResult> GetAllTasks([FromQuery] QueryObject queryObject)
         {
             _logger.LogInformation("Processing GET request for all tasks from {RequestPath}", Request.Path);
 
             try
             {
                 var username = GetUsername();
-                var id = GetId();
-                _logger.LogInformation("userId: {userId}", id);
-                await _notifications.SendPrivateMessageAsync(id, "you are accessing the tasks... weeeeeeee");  // i used this for testing the notifications <3
 
                 if (string.IsNullOrEmpty(username))
                 {
@@ -63,7 +61,7 @@ namespace api.Controllers
                     return Unauthorized("Unable to determine user identity");
                 }
 
-                var tasks = await _taskService.GetAllTasksAsync(username);
+                var tasks = await _taskService.GetAllTasksAsync(username, queryObject);
                 if (tasks == null || !tasks.Any())
                 {
                     _logger.LogInformation("No tasks found for user {Username}, returning empty list", username);
@@ -136,6 +134,7 @@ namespace api.Controllers
             try
             {
                 var username = GetUsername();
+
                 if (string.IsNullOrEmpty(username))
                 {
                     _logger.LogWarning("Username not found in claims");
@@ -149,6 +148,9 @@ namespace api.Controllers
                     _logger.LogWarning("Task creation failed - service returned null result for user {Username}", username);
                     return BadRequest("Failed to create task.");
                 }
+
+                var id = GetId();
+                await _notifications.SendPrivateMessageAsync(id, "successfully created a task, weeeeeee");
 
                 _logger.LogInformation("Successfully created task with ID {TaskId} for user {Username}", task.Id, username);
                 return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
@@ -187,6 +189,10 @@ namespace api.Controllers
                 }
 
                 var updatedTask = await _taskService.UpdateTaskAsync(id, taskDto, username);
+
+                var idUser = GetId();
+                await _notifications.SendPrivateMessageAsync(idUser, "successfully updated a task, weeeeeee");
+
                 _logger.LogInformation("Successfully updated task {TaskId} for user {Username}", id, username);
                 return Ok(updatedTask);
             }
@@ -227,6 +233,9 @@ namespace api.Controllers
                     _logger.LogInformation("Task {TaskId} not found for deletion for user {Username}", id, username);
                     return NotFound($"Task with ID {id} not found.");
                 }
+
+                var idUser = GetId();
+                await _notifications.SendPrivateMessageAsync(idUser, "successfully deleted a task, weeeeeee");
 
                 _logger.LogInformation("Successfully deleted task {TaskId} for user {Username}", id, username);
                 return NoContent();
